@@ -4,33 +4,31 @@ import imageio
 from const import *
 
 class Costmap:
-    def __init__(self, width: int = MAX_WIDHT_PIXEL, height: int = MAX_HEIGHT_PIXEL):
-        self._width = width
-        self._height = height
-        self._grid = np.full((self._height, self._width),
-                             NOT_YET_VISITED, dtype=np.uint8)
-
-    def add_obstracle(self, x: int, y: int):
-        if self._is_within_bound(x, y):
-            self._grid[y][x] = OBSTACLE
-
-    def remove_obstracle(self, x: int, y: int):
-        if self._is_within_bound(x, y) and self._grid[y][x] == OBSTACLE:
-            self._grid[y][x] == NOT_YET_VISITED
-
-    def _is_within_bound(self, x: int, y: int):
-        return 0 <= x < self._width and 0 <= y < self._height
-
+    def __init__(self, width=100, height=100):
+        self.width = width
+        self.height = height
+        self.grid = np.full((height, width), NOT_YET_VISITED, dtype=np.uint8)
+    
+    def add_obstacle(self, x, y):
+        if self.is_within_bounds(x, y):
+            self.grid[y][x] = OBSTACLE
+    
+    def remove_obstacle(self, x, y):
+        if self.is_within_bounds(x, y) and self.grid[y][x] == OBSTACLE:
+            self.grid[y][x] = NOT_YET_VISITED
+    
+    def toggle_obstacle(self, x, y):
+        if self.is_within_bounds(x, y):
+            if self.grid[y][x] == OBSTACLE:
+                self.grid[y][x] = NOT_YET_VISITED
+            else:
+                self.grid[y][x] = OBSTACLE
+    
+    def is_within_bounds(self, x, y):
+        return 0 <= x < self.width and 0 <= y < self.height
+    
     def reset(self):
-        self._grid = np.full((self._height, self._width),
-                             NOT_YET_VISITED, dtype=np.uint8)
-
-    def toggle_obstacle(self, x: int, y: int):
-        if self._grid[y][x] == OBSTACLE:
-            self._grid[y][x] == NOT_YET_VISITED
-        else:
-            self._grid[y][x] == OBSTACLE
-
+        self.grid = np.full((self.height, self.width), NOT_YET_VISITED, dtype=np.uint8)
 
 class CostmapBuilder: 
     def __init__(self, costmap):
@@ -88,6 +86,7 @@ class CostmapBuilder:
             plt.close(self.fig)
     
     def save_map(self):
+        print("save!!")
         imageio.imwrite("costmap.pgm", self.costmap.grid)
     
     def update_display(self):
