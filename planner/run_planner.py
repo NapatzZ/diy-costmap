@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from heapq import heappush, heappop
-from costmap import Costmap
+from costmap.costmap import Costmap
 from const import *
 
 
@@ -147,7 +147,7 @@ class PathVisualizer:
         self.ax.set_yticks(np.arange(-0.5, self.costmap.height, 1), minor=True)
         self.ax.grid(which='minor', color='lightgrey',
                      linestyle='-', linewidth=0.5)
-        self.mode = 'start'  # Modes: 'start', 'goal'
+        self.mode = 'start'
         self.path = None
         self.cid_click = self.fig.canvas.mpl_connect(
             'button_press_event', self.onclick)
