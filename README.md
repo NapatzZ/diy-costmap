@@ -23,3 +23,7 @@ pip install numpy matplotlib imageio
 
 ```bash
 git clone https://github.com/NapatzZ/diy-costmap.git
+
+## Demonstration
+here a video demostration
+https://youtu.be/zN2icwEPDjE
