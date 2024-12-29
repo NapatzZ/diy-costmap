@@ -44,6 +44,6 @@ cd diy-costmap
 python main.py
 ```
 
-### Demostration
+## Demostration
 Here a demostration video
 https://youtu.be/zN2icwEPDjE
