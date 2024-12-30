@@ -43,7 +43,7 @@ cd diy-costmap
 
 python main.py
 ```
-
+---
 ## Demostration
 Here a demostration video
 https://youtu.be/zN2icwEPDjE
