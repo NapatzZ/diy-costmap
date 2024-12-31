@@ -41,3 +41,4 @@ class Visualizer:
         """
         self.im.set_data(self.costmap.grid)
         self.fig.canvas.draw_idle()
+

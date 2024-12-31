@@ -6,7 +6,6 @@ import numpy as np
 import imageio
 from const import *
 
-
 class Costmap:
     """
     Costmap holds a 2D grid (width x height). Each cell is one of several states:
@@ -20,7 +19,7 @@ class Costmap:
         goal (tuple or None): (x, y) for the goal cell.
     """
 
-    def __init__(self, width: int = 100, height: int = 100):
+    def __init__(self, width: int = MAX_WIDHT_PIXEL, height: int = MAX_HEIGHT_PIXEL):
         """
         Initialize a costmap of the given size. All cells start as UNKNOWN.
 
@@ -136,28 +135,9 @@ class Costmap:
     def reset_path(self, map_file: str) -> None:
         """
         Reload the map file to restore the original map.
-        Keep the same start and goal coordinates and re-assign them.
 
         Args:
             map_file (str): The map file to reload.
         """
-        old_start = self.start
-        old_goal = self.goal
-
         self.load_map(map_file)
 
-        # Re-assign the old start/goal if they are within bounds
-        # (But only do so if the old positions are still valid.)
-        if old_start:
-            sx, sy = old_start
-            if self.is_within_bounds(sx, sy) and self.is_free(sx, sy):
-                self.set_start(sx, sy)
-            else:
-                self.start = None
-
-        if old_goal:
-            gx, gy = old_goal
-            if self.is_within_bounds(gx, gy) and self.is_free(gx, gy):
-                self.set_goal(gx, gy)
-            else:
-                self.goal = None

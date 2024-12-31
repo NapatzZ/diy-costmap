@@ -5,6 +5,7 @@ Interactive visualization for path planning using A*, Dijkstra, or RRT.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from visualizer.visualizer import Visualizer
 from planner.planners import AStarPlanner, DijkstraPlanner, RRTPlanner
 from const import (
     FREE,
@@ -15,7 +16,7 @@ from const import (
     GOAL
 )
 
-class PathVisualizer:
+class PathVisualizer(Visualizer):
     """
     Displays the costmap in a Matplotlib window. Allows the user to set start/goal,
     choose among A*, Dijkstra, or RRT, and see the resulting path. 
@@ -30,26 +31,13 @@ class PathVisualizer:
             costmap: An instance of the Costmap class to visualize.
             map_file (str): The path to the map file used for reloading if needed.
         """
-        self.costmap = costmap
+        super().__init__(costmap, fig_size=(12, 6))
+
         self.map_file = map_file
 
-        # Create figure with two subplots (map on the left, menu on the right)
-        self.fig = plt.figure(figsize=(12, 6))
+        # Create figure with two subplots (reuse left subplot from Visualizer)
         gridspec = self.fig.add_gridspec(1, 2, width_ratios=[3, 1])
-
-        # Left subplot for the map
-        self.ax_map = self.fig.add_subplot(gridspec[0, 0])
-        self.im = self.ax_map.imshow(
-            self.costmap.grid,
-            cmap=plt.cm.gray,
-            origin='lower',
-            vmin=0,
-            vmax=255
-        )
-        self.ax_map.set_aspect('equal', 'box')
-        self.fig.canvas.draw_idle()
-
-        # Right subplot for the menu
+        self.ax_map = self.ax  # Reuse the axis from Visualizer
         self.ax_menu = self.fig.add_subplot(gridspec[0, 1])
         self.ax_menu.set_axis_off()
 
@@ -62,14 +50,8 @@ class PathVisualizer:
         self.mode = 'start'
 
         # Connect Matplotlib events
-        self.cid_click = self.fig.canvas.mpl_connect(
-            'button_press_event',
-            self.onclick
-        )
-        self.cid_key = self.fig.canvas.mpl_connect(
-            'key_press_event',
-            self.onkey
-        )
+        self.cid_click = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
+        self.cid_key = self.fig.canvas.mpl_connect('key_press_event', self.onkey)
 
         self.update_menu()
 
@@ -175,16 +157,12 @@ class PathVisualizer:
 
     def reset_map(self):
         """
-        Example of reloading the map file or resetting the costmap. 
-        This depends on how you implement your 'reset_path' or 'load_map' logic.
+        Reload the map file or reset the costmap.
         """
-        # If you have a method like costmap.reset_path(map_file),
-        # you can do something like:
         if hasattr(self.costmap, 'reset_path'):
             self.costmap.reset_path(self.map_file)
             print("Map has been reloaded from file.")
         else:
-            # Fallback: Just reset the entire grid to UNKNOWN (or reload).
             print("No 'reset_path' method found; fallback to costmap.reset()")
             self.costmap.reset()
 
@@ -197,14 +175,10 @@ class PathVisualizer:
         Refresh the map display. Plots the costmap grid, the path (if any),
         and the start/goal markers.
         """
-        self.im.set_data(self.costmap.grid)
-        self.im.set_clim(vmin=0, vmax=255)
+        super().update_display()
 
         # Remove old path lines
-        old_lines = [
-            line for line in self.ax_map.lines 
-            if line.get_label() == 'Path'
-        ]
+        old_lines = [line for line in self.ax_map.lines if line.get_label() == 'Path']
         for line in old_lines:
             line.remove()
 
@@ -212,34 +186,42 @@ class PathVisualizer:
         if self.path:
             xs = [p[0] for p in self.path]
             ys = [p[1] for p in self.path]
-            self.ax_map.plot(xs, ys, color='green', linewidth=2, 
-                             label='Path')
-
-        # Remove old start/goal scatter
-        old_scatters = [
-            sc for sc in self.ax_map.collections
-            if sc.get_label() in ['Start', 'Goal']
-        ]
-        for sc in old_scatters:
-            sc.remove()
+            self.ax_map.plot(xs, ys, color='green', linewidth=2, label='Path')
 
         # Plot start as a blue circle
         if self.costmap.start:
+
+            # Remove specific scatter elements by label
+            old_scatters = [
+                scatter for scatter in self.ax_map.collections
+                if scatter.get_label() in ['Start']
+            ]
+
+            for scatter in old_scatters:
+                scatter.remove()
+
             sx, sy = self.costmap.start
-            self.ax_map.scatter(sx, sy, c='blue', marker='o', s=100,
-                                label='Start', zorder=3)
+            self.ax_map.scatter(sx, sy, c='blue', marker='o', s=100, label='Start', zorder=3)
 
         # Plot goal as a red 'x'
         if self.costmap.goal:
+
+            # Remove specific scatter elements by label
+            old_scatters = [
+                scatter for scatter in self.ax_map.collections
+                if scatter.get_label() in ['Goal']
+            ]
+
+            for scatter in old_scatters:
+                scatter.remove()
+
             gx, gy = self.costmap.goal
-            self.ax_map.scatter(gx, gy, c='red', marker='x', s=100,
-                                label='Goal', zorder=3)
+            self.ax_map.scatter(gx, gy, c='red', marker='x', s=100, label='Goal', zorder=3)
 
         # Update legend
         handles, labels = self.ax_map.get_legend_handles_labels()
         by_label = dict(zip(labels, handles))
-        self.ax_map.legend(by_label.values(), by_label.keys(), 
-                           loc='upper right')
+        self.ax_map.legend(by_label.values(), by_label.keys(), loc='upper right')
 
         self.fig.canvas.draw_idle()
         self.update_menu()
@@ -252,10 +234,7 @@ class PathVisualizer:
         self.ax_menu.clear()
         self.ax_menu.set_axis_off()
 
-        self.ax_menu.text(
-            0.05, 0.95, "Path Planning Menu",
-            fontsize=14, va='top', fontweight='bold'
-        )
+        self.ax_menu.text(0.05, 0.95, "Path Planning Menu", fontsize=14, va='top', fontweight='bold')
         lines = [
             f"Planner: {self.current_planner_name}",
             f"Mode: {self.mode}",
@@ -268,10 +247,7 @@ class PathVisualizer:
             self.ax_menu.text(0.05, y_pos, line, fontsize=12, va='top')
             y_pos -= 0.07
 
-        self.ax_menu.text(
-            0.05, y_pos, "[Keys]", fontsize=12, 
-            va='top', fontweight='bold'
-        )
+        self.ax_menu.text(0.05, y_pos, "[Keys]", fontsize=12, va='top', fontweight='bold')
         y_pos -= 0.07
 
         cmds = [
