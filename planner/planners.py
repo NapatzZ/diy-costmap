@@ -200,35 +200,70 @@ class DijkstraPlanner(BasePlanner):
         return path
 
 
+
 class RRTPlanner(BasePlanner):
     """
     Rapidly-exploring Random Tree for grid-based path planning.
     """
 
-    def __init__(self, costmap, max_iter: int = 1000):
+    def __init__(self, costmap, max_iter: int = 2000, step_size: int = 5, goal_bias: float = 0.05):
         super().__init__(costmap)
         self.max_iter = max_iter
+        self.step_size = step_size
+        self.goal_bias = goal_bias
 
     def plan(self, start: tuple, goal: tuple):
         """
         RRT plan from start to goal. 
         Randomly samples cells, grows a tree step by step.
         """
-        tree = {start: None}
-        for _ in range(self.max_iter):
-            rand_node = self._sample_node()
-            nearest = self._nearest(rand_node, tree.keys())
-            new_node = self._steer(nearest, rand_node)
+        
+        # Ensure start and goal are marked correctly
+        if self.costmap.start:
+            sx, sy = self.costmap.start
+            self.costmap.grid[sy][sx] = START
+        if self.costmap.goal:
+            gx, gy = self.costmap.goal
+            self.costmap.grid[gy][gx] = GOAL
 
-            if self._is_free(new_node):
-                tree[new_node] = nearest
-                x, y = new_node
-                if self.costmap.grid[y][x] not in [START, GOAL]:
-                    self.costmap.grid[y][x] = VISITED
+        # Keep trying until a path is found or an iteration limit is reached
+        max_attempts = 50  # Maximum number of attempts to find a path
+        for attempt in range(max_attempts):
+            tree = {start: None}
+            
+            for _ in range(self.max_iter):
+                # Introduce goal bias
+                if random.random() < self.goal_bias:
+                    rand_node = goal
+                else:
+                    rand_node = self._sample_node()
 
-                if self._distance(new_node, goal) <= 1:
-                    tree[goal] = new_node
-                    return self._reconstruct_path(tree, goal)
+                nearest_node = self._nearest(rand_node, tree.keys())
+                new_node = self._steer(nearest_node, rand_node, self.step_size)
+
+                if self._is_free(new_node):
+                    tree[new_node] = nearest_node
+                    x, y = new_node
+                    if self.costmap.grid[y][x] not in [START, GOAL]:
+                        self.costmap.grid[y][x] = VISITED
+                    
+                    if self._distance(new_node, goal) <= self.step_size:
+                        tree[goal] = new_node
+                        path = self._reconstruct_path(tree, goal)
+                        # Mark path on the costmap (Optional visualization)
+                        for x, y in path:
+                            if self.costmap.grid[y][x] not in [START, GOAL]:
+                                self.costmap.grid[y][x] = FREE  # Or a special PATH value if you want to distinguish it
+                        return path
+
+            # If path not found in this attempt, reset VISITED cells and try again with a new seed
+            print(f"Attempt {attempt + 1}: Path not found, retrying...")
+            for y in range(self.costmap.height):
+                for x in range(self.costmap.width):
+                    if self.costmap.grid[y][x] == VISITED:
+                        self.costmap.grid[y][x] = UNKNOWN  # Reset visited cells
+
+        print("Failed to find a path after multiple attempts.")
         return None
 
     def _sample_node(self) -> tuple:
@@ -245,25 +280,33 @@ class RRTPlanner(BasePlanner):
         """
         return min(nodes, key=lambda n: self._distance(n, rand_node))
 
-    def _steer(self, from_node: tuple, to_node: tuple) -> tuple:
+    def _steer(self, from_node: tuple, to_node: tuple, step_size: int) -> tuple:
         """
-        Move one step from from_node towards to_node.
+        Move 'step_size' steps from from_node towards to_node.
         """
         x1, y1 = from_node
         x2, y2 = to_node
         dx, dy = x2 - x1, y2 - y1
-        step_x = x1 + np.sign(dx) if dx != 0 else x1
-        step_y = y1 + np.sign(dy) if dy != 0 else y1
-        return step_x, step_y
+        dist = self._distance(from_node, to_node)
 
+        if dist <= step_size:
+            return to_node  # If within step_size, go directly to to_node
+
+        # Normalize the direction vector and scale by step_size
+        if dist != 0:
+            dx, dy = (dx / dist) * step_size, (dy / dist) * step_size
+
+        step_x = int(round(x1 + dx))
+        step_y = int(round(y1 + dy))
+        return step_x, step_y
+    
     def _is_free(self, node: tuple) -> bool:
         """
-        Check if the cell is not obstacle.
+        Check if the cell is not an obstacle and is within bounds.
         """
         x, y = node
-        if 0 <= x < self.costmap.width and 0 <= y < self.costmap.height:
-            return self.costmap.grid[y][x] != OBSTACLE
-        return False
+        return self.costmap.is_within_bounds(x, y) and self.costmap.is_free(x, y)
+        
 
     def _distance(self, a: tuple, b: tuple) -> float:
         """
